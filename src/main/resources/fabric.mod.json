@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "covisualiser",
+  "version": "${version}",
+  "name": "CoVisualiser",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "LGPL-3.0",
+  "icon": "assets/covisualiser/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.spzla.covisualiser.client.CoVisualiserClient"
+    ],
+    "main": [
+      "dev.spzla.covisualiser.CoVisualiser"
+    ]
+  },
+  "mixins": [
+    "covisualiser.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
