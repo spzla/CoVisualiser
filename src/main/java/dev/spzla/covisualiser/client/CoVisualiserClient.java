@@ -31,7 +31,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     public static CoVisualiserClient INSTANCE;
 
     Pattern rowCountPattern = Pattern.compile("CoreProtect - (\\d+) rows? found.");
-    Pattern timestampPattern = Pattern.compile("\\d+[,.]\\d+/[mhd] ago ([+-]) (\\w+) (placed|broke|dropped|picked up) (\\w+)\\.");
+    Pattern timestampPattern = Pattern.compile("\\d+[,.]\\d+/[mhd] ago ([+-]) ([#\\w]+) (placed|broke|dropped|picked up) (\\w+)\\.");
     Pattern detailsPattern = Pattern.compile("\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/(\\w+)\\)( \\(a:([a-z]+)\\))?");
     Pattern cvPattern = Pattern.compile("#(covisualiser|covisualizer|covis|cv)");
 
