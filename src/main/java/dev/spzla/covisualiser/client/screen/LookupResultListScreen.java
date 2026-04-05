@@ -54,6 +54,15 @@ public class LookupResultListScreen extends Screen {
         int buttonHeight = 20;
         int buttonMargin = 4;
 
+        ButtonWidget resetButton = ButtonWidget.builder(Text.literal("RESET"), button -> {
+            cv.resetState();
+            cv.results.clear();
+            this.clearAndInit();
+        })
+                .position(this.x + buttonMargin, this.y + this.backgroundHeight - (buttonHeight + buttonMargin))
+                .size(buttonWidth, buttonHeight)
+                .build();
+
         this.pages = Math.max(1, (int)Math.ceil(cv.results.size() / (float)cardsPerPage));
         int lastPage = pages - 1;
         ButtonWidget previousPageButton = ButtonWidget.builder(Text.literal("PREVIOUS"), button -> {
@@ -85,6 +94,7 @@ public class LookupResultListScreen extends Screen {
         };
 
         this.refreshCards();
+        this.addDrawableChild(resetButton);
         this.addDrawableChild(previousPageButton);
         this.addDrawableChild(nextPageButton);
     }
