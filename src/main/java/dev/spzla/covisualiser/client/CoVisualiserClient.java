@@ -1,14 +1,25 @@
 package dev.spzla.covisualiser.client;
 
+import dev.spzla.covisualiser.client.parser.LookupResultParser;
+import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.*;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Date;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -18,27 +29,58 @@ import java.util.regex.Pattern;
 
 public class CoVisualiserClient implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("CoVisualiser");
-    Pattern rowCountPattern = Pattern.compile("CoreProtect - (\\d+) rows found.");
+    public static CoVisualiserClient INSTANCE;
+
+    Pattern rowCountPattern = Pattern.compile("CoreProtect - (\\d+) rows? found.");
     Pattern timestampPattern = Pattern.compile("\\d+[,.]\\d+/[mhd] ago ([+-]) (\\w+) (placed|broke) (\\w+)\\.");
     Pattern detailsPattern = Pattern.compile("\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/(\\w+)\\)");
-    List<LookupResult> results = new ArrayList<>();
+    public DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
+    public List<LookupResult> results = new ArrayList<>();
     private final LookupResultBuilder resultBuilder = new LookupResultBuilder();
-    String commandUsed = "";
+    public String commandUsed = "";
     int counter = 0;
     int toCount = 0;
 
+    private final LookupResultParser parser = new LookupResultParser();
+
     private ParserState parserState = ParserState.DEFAULT;
+
+    private static KeyBinding keyBinding;
+    private static final KeyBinding.Category CATEGORY = KeyBinding.Category.create(Identifier.of("covisualiser", "test"));
     
     @Override
     public void onInitializeClient() {
-        LOGGER.info("CoVisualiser Initialized");
+        if (INSTANCE == null) {
+            INSTANCE = this;
+        }
+
+        keyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.covisualiser.openlist",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_J,
+                CATEGORY
+        ));
 
         ClientReceiveMessageEvents.ALLOW_GAME.register(this::parseMessage);
         ClientSendMessageEvents.COMMAND.register(this::detectLookupCommand);
         ClientSendMessageEvents.MODIFY_COMMAND.register(this::modifyCommand);
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.wasPressed()) {
+                LookupResultListScreen screen = new LookupResultListScreen();
+
+                client.setScreen(screen);
+            }
+        });
+
+        LOGGER.info("CoVisualiser Initialized");
     }
 
-    private void sendCommand(String command) {
+    public static CoVisualiserClient getInstance() {
+        return INSTANCE;
+    }
+
+    public void sendCommand(String command) {
         MinecraftClient client = MinecraftClient.getInstance();
 
         client.execute(() -> {
@@ -68,6 +110,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     private String modifyCommand(String s) {
         if (parserState.equals(ParserState.DEFAULT) && (s.startsWith("co l") || s.startsWith("co lookup")) && !s.contains("#count")) {
             results.clear();
+            resetState();
             parserState = ParserState.PARSING_COUNT;
             commandUsed = s;
             return s + " #count";
@@ -143,8 +186,16 @@ public class CoVisualiserClient implements ClientModInitializer {
 
             Matcher timestampMatcher = timestampPattern.matcher(strippedText);
             if (timestampMatcher.find()) {
+                resultBuilder.setAction(timestampMatcher.group(1));
                 resultBuilder.setPlayerName(timestampMatcher.group(2));
                 resultBuilder.setBlockId(timestampMatcher.group(4));
+
+                HoverEvent hoverEvent = message.getSiblings().getFirst().getStyle().getHoverEvent();
+
+                if (hoverEvent instanceof HoverEvent.ShowText(Text value)) {
+                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(value.getString(), dateFormatter);
+                    resultBuilder.setTimestamp(zonedDateTime.toEpochSecond());
+                }
 
                 return false;
             }
@@ -163,9 +214,9 @@ public class CoVisualiserClient implements ClientModInitializer {
                 if (counter >= toCount) {
                     sendChatMessage("Parsing finished! Result count: %d".formatted(results.size()));
                     if (!results.isEmpty()) {LookupResult result = results.getFirst();
-                        sendChatMessage("1st result: %d %d %d @%s, %s - %s (%s)".formatted(
+                        sendChatMessage("1st result: %d %d %d @%s, %s - %s (%s) - %d".formatted(
                                 result.x(), result.y(), result.z(), result.worldId(),
-                                result.playerName(), result.blockId(), result.action()));
+                                result.playerName(), result.blockId(), result.action(), result.timestamp()));
                     }
 
                     CompletableFuture.runAsync(() -> {

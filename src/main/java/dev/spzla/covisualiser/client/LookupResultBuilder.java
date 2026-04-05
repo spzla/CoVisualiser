@@ -4,37 +4,50 @@ public class LookupResultBuilder {
     private int x;
     private int y;
     private int z;
+    private long timestamp;
     private String blockId;
     private String worldId;
     private String playerName;
     private String action;
 
-    public void setX(int x) {
+    public LookupResultBuilder setX(int x) {
         this.x = x;
+        return this;
     }
 
-    public void setY(int y) {
+    public LookupResultBuilder setY(int y) {
         this.y = y;
+        return this;
     }
 
-    public void setZ(int z) {
+    public LookupResultBuilder setZ(int z) {
         this.z = z;
+        return this;
     }
 
-    public void setBlockId(String blockId) {
+    public LookupResultBuilder setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+        return this;
+    }
+
+    public LookupResultBuilder setBlockId(String blockId) {
         this.blockId = blockId;
+        return this;
     }
 
-    public void setWorldId(String worldId) {
+    public LookupResultBuilder setWorldId(String worldId) {
         this.worldId = worldId;
+        return this;
     }
 
-    public void setPlayerName(String playerName) {
+    public LookupResultBuilder setPlayerName(String playerName) {
         this.playerName = playerName;
+        return this;
     }
 
-    public void setAction(String action) {
+    public LookupResultBuilder setAction(String action) {
         this.action = action;
+        return this;
     }
 
     public void reset() {
@@ -48,6 +61,6 @@ public class LookupResultBuilder {
     }
 
     public LookupResult build() {
-        return new LookupResult(x, y, z, blockId, worldId, playerName, action);
+        return new LookupResult(x, y, z, timestamp, blockId, worldId, playerName, action);
     }
 }
