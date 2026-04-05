@@ -192,9 +192,9 @@ public class CoVisualiserClient implements ClientModInitializer {
             if (countMatcher.find()) {
                 toCount = Integer.parseInt(countMatcher.group(1));
                 if (toCount != 0) {
-                    parserState = ParserState.SENDING_COMMANDS;
                     CompletableFuture.runAsync(() -> {
-                        sendCommand(commandUsed.replace("#count", ""));
+                        parserState = ParserState.PARSING_RESULTS;
+                        sendNextPageCommand();
                     }, CompletableFuture.delayedExecutor(Constants.COMMAND_DELAY, TimeUnit.MILLISECONDS));
                 } else {
                     resetState();
@@ -204,21 +204,6 @@ public class CoVisualiserClient implements ClientModInitializer {
             }
 
             return true;
-        } else if (parserState.equals(ParserState.SENDING_COMMANDS)) {
-            if (strippedText.equals("----- CoreProtect |  Lookup Results -----")) {
-                lastActivityTime = System.currentTimeMillis();
-                CompletableFuture.runAsync(() -> {
-                    MinecraftClient.getInstance().execute(() -> {
-                        parserState = ParserState.PARSING_RESULTS;
-                        sendNextPageCommand();
-                    });
-                }, CompletableFuture.delayedExecutor(Constants.COMMAND_DELAY, TimeUnit.MILLISECONDS));
-
-                return false;
-            }
-
-            if (timestampPattern.matcher(strippedText).find()) return false;
-            if (detailsPattern.matcher(rawText).find()) return false;
         } else if (parserState.equals(ParserState.PARSING_RESULTS)) {
             if (strippedText.equals("----- CoreProtect |  Lookup Results -----")) return false;
 
