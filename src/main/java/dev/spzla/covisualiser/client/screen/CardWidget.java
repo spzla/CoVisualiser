@@ -66,7 +66,7 @@ public class CardWidget implements Drawable, Element, Selectable {
 
         this.teleportButton = ButtonWidget.builder(Text.literal("TELEPORT"), button -> {
             CoVisualiserClient.getInstance().sendCommand(
-                    String.format("co tp %s %f %d %f",
+                    String.format("co tp %s %.2f %d %.2f",
                             this.lookupResult.worldId(),
                             this.lookupResult.x() + 0.5,
                             this.lookupResult.y(),
