@@ -27,19 +27,16 @@ public class LookupResultListScreen extends Screen {
     protected int backgroundWidth = 588;
     protected int backgroundHeight = 272;
 
-    private int currentPage = 0;
     private final int cardsPerPage = 4;
 
     private final int shiftSkipPageMult = 10;
 
     protected List<CardWidget> cards = new ArrayList<>();
 
-    private TextWidget pagesTextWidget;
-
     private int pages;
 
     public LookupResultListScreen() {
-        super(Text.literal("Test"));
+        super(Text.literal("Lookup Results List"));
     }
 
     @Override
@@ -67,7 +64,7 @@ public class LookupResultListScreen extends Screen {
         int lastPage = pages - 1;
         ButtonWidget previousPageButton = ButtonWidget.builder(Text.literal("PREVIOUS"), button -> {
             int pagesToSkip = -1;
-            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? currentPage : shiftSkipPageMult;
+            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
             this.clearAndInit();
         })
@@ -77,7 +74,7 @@ public class LookupResultListScreen extends Screen {
 
         ButtonWidget nextPageButton = ButtonWidget.builder(Text.literal("NEXT"), button -> {
             int pagesToSkip = 1;
-            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? lastPage - currentPage : shiftSkipPageMult;
+            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? lastPage - cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
             this.clearAndInit();
         })
@@ -85,11 +82,11 @@ public class LookupResultListScreen extends Screen {
                 .width(buttonWidth)
                 .build();
 
-        if (this.currentPage == 0) {
+        if (cv.currentPage == 0) {
             previousPageButton.active = false;
         }
 
-        if (this.currentPage == lastPage) {
+        if (cv.currentPage == lastPage) {
             nextPageButton.active = false;
         };
 
@@ -148,7 +145,7 @@ public class LookupResultListScreen extends Screen {
             context.drawText(textRenderer, mt, x + 4, y + 4, 0xFF000000, false);
         }
 
-        String pageText = String.format("Page %d of %d", currentPage + 1, pages);
+        String pageText = String.format("Page %d of %d", cv.currentPage + 1, pages);
         int pageTextWidth = textRenderer.getWidth(pageText);
         int textX = (this.width - pageTextWidth) / 2;
         int textY = this.y + this.backgroundHeight - textRenderer.fontHeight / 2 - 10 - 4;
@@ -157,14 +154,14 @@ public class LookupResultListScreen extends Screen {
     }
 
     private void movePage(int amount) {
-        this.currentPage = Math.clamp(this.currentPage + amount, 0, this.pages - 1);
+        CoVisualiserClient.getInstance().currentPage = Math.clamp(CoVisualiserClient.getInstance().currentPage + amount, 0, this.pages - 1);
     }
 
     protected void refreshCards() {
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
         this.cards.clear();
 
-        int startIndex = currentPage * cardsPerPage;
+        int startIndex = cv.currentPage * cardsPerPage;
 
         for (int i = 0; i < cardsPerPage; i++) {
             int resultIndex = startIndex + i;

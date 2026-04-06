@@ -42,6 +42,8 @@ public class CoVisualiserClient implements ClientModInitializer {
     int counter = 0;
     int toCount = 0;
 
+    public int currentPage = 0;
+
     private long lastActivityTime = 0;
     private static final int TIMEOUT_MS = 10 * 1000;
 
@@ -137,6 +139,7 @@ public class CoVisualiserClient implements ClientModInitializer {
         this.counter = 0;
         this.toCount = 0;
         this.lastActivityTime = 0;
+        this.currentPage = 0;
     }
 
     private String modifyCommand(String s) {
@@ -160,6 +163,11 @@ public class CoVisualiserClient implements ClientModInitializer {
         if (toCount > 0 && (s.startsWith("co l ") || s.startsWith("co lookup"))) {
             LOGGER.info("co l/lookup command used!");
         }
+    }
+
+    private String fixDate(String date) {
+        if (date.contains("BST")) date = date.replace("BST", "Europe/London");
+        return date;
     }
 
     private void sendNextPageCommand() {
@@ -218,7 +226,7 @@ public class CoVisualiserClient implements ClientModInitializer {
                 HoverEvent hoverEvent = message.getSiblings().getFirst().getStyle().getHoverEvent();
 
                 if (hoverEvent instanceof HoverEvent.ShowText(Text value)) {
-                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(value.getString(), dateFormatter);
+                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(fixDate(value.getString()), dateFormatter);
                     resultBuilder.setTimestamp(zonedDateTime.toEpochSecond());
                 }
 
