@@ -1,6 +1,7 @@
 package dev.spzla.covisualiser.client.screen;
 
 import dev.spzla.covisualiser.client.CoVisualiserClient;
+import dev.spzla.covisualiser.client.Constants;
 import dev.spzla.covisualiser.client.LookupResult;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.*;
@@ -64,7 +65,10 @@ public class CardWidget implements Drawable, Element, Selectable {
         int buttonX = this.x + width - buttonWidth - borderWidth - 4;
         int buttonY = this.y + height - buttonHeight - borderWidth - 4;
 
+        CoVisualiserClient cv = CoVisualiserClient.getInstance();
+
         this.teleportButton = ButtonWidget.builder(Text.literal("TELEPORT"), button -> {
+            cv.readIds.add(this.index);
             CoVisualiserClient.getInstance().sendCommand(
                     String.format("co tp %s %.2f %d %.2f",
                             this.lookupResult.worldId(),
@@ -85,6 +89,9 @@ public class CardWidget implements Drawable, Element, Selectable {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
         MinecraftClient client = MinecraftClient.getInstance();
+        CoVisualiserClient cv = CoVisualiserClient.getInstance();
+
+        int textColor = cv.readIds.contains(this.index) ? Constants.READ_COLOR : Constants.UNREAD_COLOR;
 
         context.fill(this.x, this.y, this.right, this.y + this.height, 0xFFAEAEAE);
         context.fill(this.innerLeft, this.innerTop, this.x + this.width - this.borderWidth, this.y + this.height - this.borderWidth, 0xFFDEDEDE);
@@ -97,22 +104,22 @@ public class CardWidget implements Drawable, Element, Selectable {
         int line = 1;
         int lineHeight = client.textRenderer.fontHeight + this.innerPadding;
         //context.drawText(client.textRenderer, String.format("#%d", this.index + 1), innerX + imageBoxSize + 2 * 4, innerY + 2 * 4, 0xFF9E9E9E, false);
-        context.drawText(client.textRenderer, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, 0xFF9E9E9E, false);
+        context.drawText(client.textRenderer, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
         String date = zdt.format(CoVisualiserClient.getInstance().dateFormatter);
         context.drawText(
                 client.textRenderer, date, this.innerRight - client.textRenderer.getWidth(date) - this.innerPadding,
-                innerTop + this.outerPadding, 0xFF9E9E9E, false);
+                innerTop + this.outerPadding, textColor, false);
         context.drawText(
                 client.textRenderer,Text.literal(this.lookupResult.playerName()).formatted(Formatting.BOLD),
-                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, 0xFF9E9E9E, false);
+                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
         context.drawText(
                 client.textRenderer,
                 String.format("XYZ: %d %d %d", this.lookupResult.x(), this.lookupResult.y(), this.lookupResult.z()),
-                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, 0xFF9E9E9E, false);
+                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
         context.drawText(client.textRenderer, String.format("dim: %s", this.lookupResult.worldId()),
-                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, 0xFF9E9E9E, false);
+                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
         context.drawText(client.textRenderer, String.format("Block: %s", this.lookupResult.blockId()),
-                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, 0xFF9E9E9E, false);
+                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
 
         this.teleportButton.render(context, mouseX, mouseY, deltaTicks);
     }

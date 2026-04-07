@@ -18,9 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -43,11 +41,10 @@ public class CoVisualiserClient implements ClientModInitializer {
     int toCount = 0;
 
     public int currentPage = 0;
+    public Set<Integer> readIds = new HashSet<>();
 
     private long lastActivityTime = 0;
     private static final int TIMEOUT_MS = 10 * 1000;
-
-    private final LookupResultParser parser = new LookupResultParser();
 
     private ParserState parserState = ParserState.DEFAULT;
 
@@ -140,6 +137,7 @@ public class CoVisualiserClient implements ClientModInitializer {
         this.toCount = 0;
         this.lastActivityTime = 0;
         this.currentPage = 0;
+        this.readIds.clear();
     }
 
     private String modifyCommand(String s) {
