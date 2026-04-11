@@ -1,23 +1,14 @@
 package dev.spzla.covisualiser.client.screen;
 
 import dev.spzla.covisualiser.client.CoVisualiserClient;
-import dev.spzla.covisualiser.client.LookupResult;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextWidget;
-import net.minecraft.client.realms.util.TextRenderingUtils;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
 
-import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,8 +16,20 @@ public class LookupResultListScreen extends Screen {
     protected int x;
     protected int y;
 
+    protected int margin = 40;
+
+    protected int maxWidth = 588;
+    protected int maxHeight = 272;
+
     protected int backgroundWidth = 588;
     protected int backgroundHeight = 272;
+
+    protected int cardWidth;
+    protected int cardHeight;
+    protected int cardMarginTop = 16;
+    protected int cardMarginHorizontal = 4;
+    protected int cardMarginBottom = 28;
+    protected int cardGap = 4;
 
     private final int cardsPerPage = 4;
 
@@ -53,8 +56,7 @@ public class LookupResultListScreen extends Screen {
         this.clearChildren();
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
-        this.x = (this.width - this.backgroundWidth) / 2;
-        this.y = (this.height - this.backgroundHeight) / 2;
+        this.calculateSizes();
 
         int buttonWidth = 80;
         int buttonHeight = 20;
@@ -118,6 +120,17 @@ public class LookupResultListScreen extends Screen {
         this.addDrawableChild(this.resetButton);
         this.addDrawableChild(this.previousPageButton);
         this.addDrawableChild(this.nextPageButton);
+    }
+
+    private void calculateSizes() {
+        this.backgroundWidth = Math.clamp(this.width - this.margin, 0, maxWidth);
+        this.backgroundHeight = Math.clamp(this.height - this.margin, 0, maxHeight);
+
+        this.x = (this.width - this.backgroundWidth) / 2;
+        this.y = (this.height - this.backgroundHeight) / 2;
+
+        this.cardWidth = (this.backgroundWidth - 2 * this.cardMarginHorizontal - this.cardGap) / 2;
+        this.cardHeight = (this.backgroundHeight - this.cardMarginTop - this.cardMarginBottom - this.cardGap) / 2;
     }
 
     @Override
@@ -204,11 +217,9 @@ public class LookupResultListScreen extends Screen {
                 break;
             }
 
-            int cardWidth = 288;
-            int cardHeight = 112;
-            int x = 4;
-            int y = 16;
-            int cardMargin = 4;
+            int x = cardMarginHorizontal;
+            int y = cardMarginTop;
+            int cardMargin = cardGap;
 
             if (i % 2 == 1) {
                 x += cardWidth + cardMargin;
@@ -218,6 +229,7 @@ public class LookupResultListScreen extends Screen {
 
             CardWidget card = CardWidget.builder()
                     .position(this.x + x, this.y + y)
+                    .size(cardWidth, cardHeight)
                     .index(resultIndex)
                     .result(cv.results.get(resultIndex))
                     .build();
