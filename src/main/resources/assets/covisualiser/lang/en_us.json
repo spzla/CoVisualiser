@@ -6,5 +6,9 @@
   "covisualiser.config.option.enabled": "Enabled",
   "covisualiser.config.option.enabled.description": "Enables/disables the mod.",
   "covisualiser.config.option.closeuionteleport": "Close UI on teleport",
-  "covisualiser.config.option.closeuionteleport.description": "Closes the interface when clicking the teleport button."
+  "covisualiser.config.option.closeuionteleport.description": "Closes the interface when clicking the teleport button.",
+  "covisualiser.tooltip.reset": "Clear results and reset state.",
+  "covisualiser.tooltip.skipnpages": "Hold SHIFT to skip %d pages.",
+  "covisualiser.tooltip.skiptofirst": "Hold CTRL+SHIFT to jump to the first page.",
+  "covisualiser.tooltip.skiptolast": "Hold CTRL+SHIFT to jump to the last page."
 }

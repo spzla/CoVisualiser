@@ -6,6 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextWidget;
 import net.minecraft.client.realms.util.TextRenderingUtils;
@@ -33,6 +34,14 @@ public class LookupResultListScreen extends Screen {
 
     protected List<CardWidget> cards = new ArrayList<>();
 
+    private List<Text> resetTooltipText;
+    private List<Text> previousTooltipText;
+    private List<Text> nextTooltipText;
+
+    private ButtonWidget resetButton;
+    private ButtonWidget previousPageButton;
+    private ButtonWidget nextPageButton;
+
     private int pages;
 
     public LookupResultListScreen() {
@@ -51,7 +60,7 @@ public class LookupResultListScreen extends Screen {
         int buttonHeight = 20;
         int buttonMargin = 4;
 
-        ButtonWidget resetButton = ButtonWidget.builder(Text.literal("RESET"), button -> {
+        this.resetButton = ButtonWidget.builder(Text.literal("RESET"), button -> {
             cv.resetState();
             cv.results.clear();
             this.clearAndInit();
@@ -62,7 +71,22 @@ public class LookupResultListScreen extends Screen {
 
         this.pages = Math.max(1, (int)Math.ceil(cv.results.size() / (float)cardsPerPage));
         int lastPage = pages - 1;
-        ButtonWidget previousPageButton = ButtonWidget.builder(Text.literal("PREVIOUS"), button -> {
+
+        this.resetTooltipText = List.of(
+                Text.translatable("covisualiser.tooltip.reset")
+        );
+
+        this.previousTooltipText = List.of(
+                Text.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
+                Text.translatable("covisualiser.tooltip.skiptofirst")
+        );
+
+        this.nextTooltipText = List.of(
+                Text.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
+                Text.translatable("covisualiser.tooltip.skiptolast")
+        );
+
+        this.previousPageButton = ButtonWidget.builder(Text.literal("PREVIOUS"), button -> {
             int pagesToSkip = -1;
             if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
@@ -72,7 +96,7 @@ public class LookupResultListScreen extends Screen {
                 .width(buttonWidth)
                 .build();
 
-        ButtonWidget nextPageButton = ButtonWidget.builder(Text.literal("NEXT"), button -> {
+        this.nextPageButton = ButtonWidget.builder(Text.literal("NEXT"), button -> {
             int pagesToSkip = 1;
             if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? lastPage - cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
@@ -88,12 +112,12 @@ public class LookupResultListScreen extends Screen {
 
         if (cv.currentPage == lastPage) {
             nextPageButton.active = false;
-        };
+        }
 
         this.refreshCards();
-        this.addDrawableChild(resetButton);
-        this.addDrawableChild(previousPageButton);
-        this.addDrawableChild(nextPageButton);
+        this.addDrawableChild(this.resetButton);
+        this.addDrawableChild(this.previousPageButton);
+        this.addDrawableChild(this.nextPageButton);
     }
 
     @Override
@@ -126,8 +150,6 @@ public class LookupResultListScreen extends Screen {
         super.render(context, mouseX, mouseY, deltaTicks);
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
-//        context.drawText(textRenderer, String.format("%d results", cv.results.size()), x, y, 0xFF000000, false);
-
         if (cv.results.isEmpty()) {
             String noResultsText = "Oops! There is nothing to see here :(";
             context.drawText(
@@ -151,6 +173,18 @@ public class LookupResultListScreen extends Screen {
         int textY = this.y + this.backgroundHeight - textRenderer.fontHeight / 2 - 10 - 4;
 
         context.drawText(textRenderer, pageText, textX, textY, 0xFF000000, false);
+
+        if (this.resetButton.isHovered()) {
+            context.drawTooltip(this.textRenderer, this.resetTooltipText, mouseX, mouseY);
+        }
+
+        if (this.previousPageButton.isHovered()) {
+            context.drawTooltip(this.textRenderer, this.previousTooltipText, mouseX, mouseY);
+        }
+
+        if (this.nextPageButton.isHovered()) {
+            context.drawTooltip(this.textRenderer, this.nextTooltipText, mouseX, mouseY);
+        }
     }
 
     private void movePage(int amount) {
