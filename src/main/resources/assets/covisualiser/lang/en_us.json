@@ -1,0 +1,10 @@
+{
+  "key.category.covisualiser.general": "CoVisualiser",
+  "key.covisualiser.openlist": "Open result list",
+  "covisualiser.general.title": "CoVisualiser",
+  "covisualiser.config.general.title": "General",
+  "covisualiser.config.option.enabled": "Enabled",
+  "covisualiser.config.option.enabled.description": "Enables/disables the mod.",
+  "covisualiser.config.option.closeuionteleport": "Close UI on teleport",
+  "covisualiser.config.option.closeuionteleport.description": "Closes the interface when clicking the teleport button."
+}

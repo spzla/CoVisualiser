@@ -15,6 +15,9 @@
     ],
     "main": [
       "dev.spzla.covisualiser.CoVisualiser"
+    ],
+    "modmenu": [
+      "dev.spzla.covisualiser.client.integration.ModMenuIntegration"
     ]
   },
   "mixins": [

@@ -76,6 +76,10 @@ public class CardWidget implements Drawable, Element, Selectable {
                             this.lookupResult.y(),
                             this.lookupResult.z() + 0.5
                     ));
+
+            if (CoVisualiserClient.getConfig().closeUiOnTeleport) {
+                MinecraftClient.getInstance().setScreen(null);
+            }
         })
                 .dimensions(buttonX, buttonY, buttonWidth, buttonHeight)
                 .build();

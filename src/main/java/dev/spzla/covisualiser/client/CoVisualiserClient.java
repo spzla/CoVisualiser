@@ -1,5 +1,6 @@
 package dev.spzla.covisualiser.client;
 
+import dev.spzla.covisualiser.client.config.CoVisualiserConfig;
 import dev.spzla.covisualiser.client.parser.LookupResultParser;
 import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
 import net.fabricmc.api.ClientModInitializer;
@@ -25,7 +26,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CoVisualiserClient implements ClientModInitializer {
-    public static final Logger LOGGER = LoggerFactory.getLogger("CoVisualiser");
+    public static final String MOD_ID = "CoVisualiser";
+
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static CoVisualiserClient INSTANCE;
 
     Pattern rowCountPattern = Pattern.compile("CoreProtect - (\\d+) rows? found.");
@@ -49,13 +52,15 @@ public class CoVisualiserClient implements ClientModInitializer {
     private ParserState parserState = ParserState.DEFAULT;
 
     private static KeyBinding keyBinding;
-    private static final KeyBinding.Category CATEGORY = KeyBinding.Category.create(Identifier.of("covisualiser", "test"));
+    private static final KeyBinding.Category CATEGORY = KeyBinding.Category.create(Identifier.of("covisualiser", "general"));
     
     @Override
     public void onInitializeClient() {
         if (INSTANCE == null) {
             INSTANCE = this;
         }
+
+        getConfig().load();
 
         keyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.covisualiser.openlist",
@@ -65,7 +70,6 @@ public class CoVisualiserClient implements ClientModInitializer {
         ));
 
         ClientReceiveMessageEvents.ALLOW_GAME.register(this::parseMessage);
-        ClientSendMessageEvents.COMMAND.register(this::detectLookupCommand);
         ClientSendMessageEvents.MODIFY_COMMAND.register(this::modifyCommand);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -93,11 +97,15 @@ public class CoVisualiserClient implements ClientModInitializer {
         return INSTANCE;
     }
 
+    public static CoVisualiserConfig getConfig() {
+        return CoVisualiserConfig.INSTANCE;
+    }
+
     public void sendCommand(String command) {
         MinecraftClient client = MinecraftClient.getInstance();
 
         client.execute(() -> {
-            LOGGER.info("[CoVisualiser] Sending command: {}", command);
+            LOGGER.info("[{}] Sending command: {}", MOD_ID, command);
             if (client.getNetworkHandler() != null) {
                 client.getNetworkHandler().sendChatCommand(command);
             }
@@ -141,6 +149,8 @@ public class CoVisualiserClient implements ClientModInitializer {
     }
 
     private String modifyCommand(String s) {
+        if (!getConfig().enabled) return s;
+
         if (parserState.equals(ParserState.DEFAULT) && (s.startsWith("co l") || s.startsWith("co lookup")) && cvPattern.matcher(s).find() && !s.contains("#count")) {
             String str = s.replaceAll(cvPattern.pattern(), "");
             results.clear();
@@ -154,13 +164,6 @@ public class CoVisualiserClient implements ClientModInitializer {
         }
 
         return s;
-    }
-
-    private void detectLookupCommand(String s) {
-        LOGGER.info("[CoVisualiser] Command used: {}", s);
-        if (toCount > 0 && (s.startsWith("co l ") || s.startsWith("co lookup"))) {
-            LOGGER.info("co l/lookup command used!");
-        }
     }
 
     private String fixDate(String date) {
@@ -179,7 +182,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     }
 
     private boolean parseMessage(Text message, boolean overlay) {
-        if (overlay || parserState.equals(ParserState.DEFAULT)) return true;
+        if (!getConfig().enabled || overlay || parserState.equals(ParserState.DEFAULT)) return true;
         
         String rawText = message.getString();
         String strippedText = stripFormatting(rawText);
