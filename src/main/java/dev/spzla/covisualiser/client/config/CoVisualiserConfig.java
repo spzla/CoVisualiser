@@ -10,9 +10,8 @@ import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
 import dev.spzla.covisualiser.client.CoVisualiserClient;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
-
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -60,12 +59,12 @@ public class CoVisualiserConfig {
 
     public Screen makeScreen(Screen parent) {
         return YetAnotherConfigLib.createBuilder()
-                .title(Text.translatable("covisualiser.general.title"))
+                .title(Component.translatable("covisualiser.general.title"))
                 .category(ConfigCategory.createBuilder()
-                        .name(Text.translatable("covisualiser.config.general.title"))
+                        .name(Component.translatable("covisualiser.config.general.title"))
                         .option(Option.<Boolean>createBuilder()
-                                .name(Text.translatable("covisualiser.config.option.enabled"))
-                                .description(OptionDescription.of(Text.translatable("covisualiser.config.option.enabled.description")))
+                                .name(Component.translatable("covisualiser.config.option.enabled"))
+                                .description(OptionDescription.of(Component.translatable("covisualiser.config.option.enabled.description")))
                                 .binding(
                                         true,
                                         () -> enabled,
@@ -74,8 +73,8 @@ public class CoVisualiserConfig {
                                 .controller(TickBoxControllerBuilder::create)
                                 .build())
                         .option(Option.<Boolean>createBuilder()
-                                .name(Text.translatable("covisualiser.config.option.closeuionteleport"))
-                                .description(OptionDescription.of(Text.translatable("covisualiser.config.option.closeuionteleport.description")))
+                                .name(Component.translatable("covisualiser.config.option.closeuionteleport"))
+                                .description(OptionDescription.of(Component.translatable("covisualiser.config.option.closeuionteleport.description")))
                                 .binding(
                                         true,
                                         () -> closeUiOnTeleport,

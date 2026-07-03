@@ -3,18 +3,21 @@ package dev.spzla.covisualiser.client.screen;
 import dev.spzla.covisualiser.client.CoVisualiserClient;
 import dev.spzla.covisualiser.client.Constants;
 import dev.spzla.covisualiser.client.LookupResult;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.*;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-public class CardWidget implements Drawable, Element, Selectable {
+public class CardWidget implements Renderable, GuiEventListener, NarratableEntry {
     protected int width;
     protected int height;
     private int x;
@@ -37,7 +40,7 @@ public class CardWidget implements Drawable, Element, Selectable {
 
     private ZonedDateTime zdt;
 
-    private final ButtonWidget teleportButton;
+    private final Button teleportButton;
 
     public CardWidget(int x, int y, int width, int height, int index, LookupResult lookupResult) {
         this.x = x;
@@ -67,7 +70,7 @@ public class CardWidget implements Drawable, Element, Selectable {
 
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
-        this.teleportButton = ButtonWidget.builder(Text.literal("TELEPORT"), button -> {
+        this.teleportButton = Button.builder(Component.literal("TELEPORT"), button -> {
             cv.readIds.add(this.index);
             CoVisualiserClient.getInstance().sendCommand(
                     String.format("co tp %s %.2f %d %.2f",
@@ -78,10 +81,10 @@ public class CardWidget implements Drawable, Element, Selectable {
                     ));
 
             if (CoVisualiserClient.getConfig().closeUiOnTeleport) {
-                MinecraftClient.getInstance().setScreen(null);
+                Minecraft.getInstance().setScreen(null);
             }
         })
-                .dimensions(buttonX, buttonY, buttonWidth, buttonHeight)
+                .bounds(buttonX, buttonY, buttonWidth, buttonHeight)
                 .build();
     }
 
@@ -91,8 +94,8 @@ public class CardWidget implements Drawable, Element, Selectable {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+        Minecraft client = Minecraft.getInstance();
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
         int textColor = cv.readIds.contains(this.index) ? Constants.READ_COLOR : Constants.UNREAD_COLOR;
@@ -106,23 +109,23 @@ public class CardWidget implements Drawable, Element, Selectable {
 //        context.drawText(client.textRenderer, this.lookupResult.blockId(), innerLeft + 8, innerTop + 8, 0xFFFFFFFF, true);
 
         int line = 1;
-        int lineHeight = client.textRenderer.fontHeight + this.innerPadding;
+        int lineHeight = client.font.lineHeight + this.innerPadding;
         //context.drawText(client.textRenderer, String.format("#%d", this.index + 1), innerX + imageBoxSize + 2 * 4, innerY + 2 * 4, 0xFF9E9E9E, false);
-        context.drawText(client.textRenderer, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
+        context.drawString(client.font, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
         String date = zdt.format(CoVisualiserClient.getInstance().dateFormatter);
-        context.drawText(
-                client.textRenderer, date, this.innerRight - client.textRenderer.getWidth(date) - this.innerPadding,
+        context.drawString(
+                client.font, date, this.innerRight - client.font.width(date) - this.innerPadding,
                 innerTop + this.outerPadding, textColor, false);
-        context.drawText(
-                client.textRenderer,Text.literal(this.lookupResult.playerName()).formatted(Formatting.BOLD),
+        context.drawString(
+                client.font,Component.literal(this.lookupResult.playerName()).withStyle(ChatFormatting.BOLD),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawText(
-                client.textRenderer,
+        context.drawString(
+                client.font,
                 String.format("XYZ: %d %d %d", this.lookupResult.x(), this.lookupResult.y(), this.lookupResult.z()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawText(client.textRenderer, String.format("dim: %s", this.lookupResult.worldId()),
+        context.drawString(client.font, String.format("dim: %s", this.lookupResult.worldId()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawText(client.textRenderer, String.format("Block: %s", this.lookupResult.blockId()),
+        context.drawString(client.font, String.format("Block: %s", this.lookupResult.blockId()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
 
         this.teleportButton.render(context, mouseX, mouseY, deltaTicks);
@@ -135,7 +138,7 @@ public class CardWidget implements Drawable, Element, Selectable {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (this.teleportButton.mouseClicked(click, doubled)) return true;
 
         return false;
@@ -152,12 +155,12 @@ public class CardWidget implements Drawable, Element, Selectable {
     }
 
     @Override
-    public SelectionType getType() {
-        return SelectionType.NONE;
+    public NarrationPriority narrationPriority() {
+        return NarrationPriority.NONE;
     }
 
     @Override
-    public void appendNarrations(NarrationMessageBuilder builder) {
+    public void updateNarration(NarrationElementOutput builder) {
 
     }
 

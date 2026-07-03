@@ -1,16 +1,15 @@
 package dev.spzla.covisualiser.client.screen;
 
 import dev.spzla.covisualiser.client.CoVisualiserClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 public class LookupResultListScreen extends Screen {
     protected int x;
@@ -37,23 +36,23 @@ public class LookupResultListScreen extends Screen {
 
     protected List<CardWidget> cards = new ArrayList<>();
 
-    private List<Text> resetTooltipText;
-    private List<Text> previousTooltipText;
-    private List<Text> nextTooltipText;
+    private List<Component> resetTooltipText;
+    private List<Component> previousTooltipText;
+    private List<Component> nextTooltipText;
 
-    private ButtonWidget resetButton;
-    private ButtonWidget previousPageButton;
-    private ButtonWidget nextPageButton;
+    private Button resetButton;
+    private Button previousPageButton;
+    private Button nextPageButton;
 
     private int pages;
 
     public LookupResultListScreen() {
-        super(Text.literal("Lookup Results List"));
+        super(Component.literal("Lookup Results List"));
     }
 
     @Override
     protected void init() {
-        this.clearChildren();
+        this.clearWidgets();
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
         this.calculateSizes();
@@ -62,12 +61,12 @@ public class LookupResultListScreen extends Screen {
         int buttonHeight = 20;
         int buttonMargin = 4;
 
-        this.resetButton = ButtonWidget.builder(Text.literal("RESET"), button -> {
+        this.resetButton = Button.builder(Component.literal("RESET"), button -> {
             cv.resetState();
             cv.results.clear();
-            this.clearAndInit();
+            this.rebuildWidgets();
         })
-                .position(this.x + buttonMargin, this.y + this.backgroundHeight - (buttonHeight + buttonMargin))
+                .pos(this.x + buttonMargin, this.y + this.backgroundHeight - (buttonHeight + buttonMargin))
                 .size(buttonWidth, buttonHeight)
                 .build();
 
@@ -75,36 +74,36 @@ public class LookupResultListScreen extends Screen {
         int lastPage = pages - 1;
 
         this.resetTooltipText = List.of(
-                Text.translatable("covisualiser.tooltip.reset")
+                Component.translatable("covisualiser.tooltip.reset")
         );
 
         this.previousTooltipText = List.of(
-                Text.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
-                Text.translatable("covisualiser.tooltip.skiptofirst")
+                Component.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
+                Component.translatable("covisualiser.tooltip.skiptofirst")
         );
 
         this.nextTooltipText = List.of(
-                Text.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
-                Text.translatable("covisualiser.tooltip.skiptolast")
+                Component.translatable("covisualiser.tooltip.skipnpages", shiftSkipPageMult),
+                Component.translatable("covisualiser.tooltip.skiptolast")
         );
 
-        this.previousPageButton = ButtonWidget.builder(Text.literal("PREVIOUS"), button -> {
+        this.previousPageButton = Button.builder(Component.literal("PREVIOUS"), button -> {
             int pagesToSkip = -1;
-            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? cv.currentPage : shiftSkipPageMult;
+            if (minecraft.hasShiftDown()) pagesToSkip *= minecraft.hasControlDown() ? cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
-            this.clearAndInit();
+            this.rebuildWidgets();
         })
-                .position(this.x + this.backgroundWidth - 2 * (buttonWidth + buttonMargin), y + this.backgroundHeight - (buttonHeight + buttonMargin))
+                .pos(this.x + this.backgroundWidth - 2 * (buttonWidth + buttonMargin), y + this.backgroundHeight - (buttonHeight + buttonMargin))
                 .width(buttonWidth)
                 .build();
 
-        this.nextPageButton = ButtonWidget.builder(Text.literal("NEXT"), button -> {
+        this.nextPageButton = Button.builder(Component.literal("NEXT"), button -> {
             int pagesToSkip = 1;
-            if (client.isShiftPressed()) pagesToSkip *= client.isCtrlPressed() ? lastPage - cv.currentPage : shiftSkipPageMult;
+            if (minecraft.hasShiftDown()) pagesToSkip *= minecraft.hasControlDown() ? lastPage - cv.currentPage : shiftSkipPageMult;
             movePage(pagesToSkip);
-            this.clearAndInit();
+            this.rebuildWidgets();
         })
-                .position(this.x + this.backgroundWidth - (buttonWidth + buttonMargin), y + this.backgroundHeight - (buttonHeight + buttonMargin))
+                .pos(this.x + this.backgroundWidth - (buttonWidth + buttonMargin), y + this.backgroundHeight - (buttonHeight + buttonMargin))
                 .width(buttonWidth)
                 .build();
 
@@ -117,9 +116,9 @@ public class LookupResultListScreen extends Screen {
         }
 
         this.refreshCards();
-        this.addDrawableChild(this.resetButton);
-        this.addDrawableChild(this.previousPageButton);
-        this.addDrawableChild(this.nextPageButton);
+        this.addRenderableWidget(this.resetButton);
+        this.addRenderableWidget(this.previousPageButton);
+        this.addRenderableWidget(this.nextPageButton);
     }
 
     private void calculateSizes() {
@@ -135,15 +134,15 @@ public class LookupResultListScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (client.isShiftPressed()) {
-            int amount = client.isCtrlPressed() ? this.shiftSkipPageMult : 1;
+        if (minecraft.hasShiftDown()) {
+            int amount = minecraft.hasControlDown() ? this.shiftSkipPageMult : 1;
             if (verticalAmount > 0 || horizontalAmount > 0) {
                 movePage(-amount);
-                this.clearAndInit();
+                this.rebuildWidgets();
                 return true;
             } else if (verticalAmount < 0 || horizontalAmount < 0) {
                 movePage(amount);
-                this.clearAndInit();
+                this.rebuildWidgets();
                 return true;
             }
         }
@@ -152,51 +151,51 @@ public class LookupResultListScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-        this.renderDarkening(context);
+    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+        this.renderMenuBackground(context);
 
         context.fill(RenderPipelines.GUI, x, y, x + backgroundWidth, y + backgroundHeight, 0xFFDEDEDE);
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
         super.render(context, mouseX, mouseY, deltaTicks);
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
         if (cv.results.isEmpty()) {
             String noResultsText = "Oops! There is nothing to see here :(";
-            context.drawText(
-                    textRenderer,
+            context.drawString(
+                    font,
                     noResultsText,
-                    x + backgroundWidth / 2 - textRenderer.getWidth(noResultsText) / 2,
-                    y + backgroundHeight / 2 - textRenderer.fontHeight / 2,
+                    x + backgroundWidth / 2 - font.width(noResultsText) / 2,
+                    y + backgroundHeight / 2 - font.lineHeight / 2,
                     0xFF000000,
                     false
             );
         } else {
-            MutableText mt = Text.empty()
-                    .append(Text.literal("Showing results for: ").formatted(Formatting.BOLD))
-                    .append(Text.literal(cv.commandUsed.replaceFirst("co (lookup|l) ", "")));
-            context.drawText(textRenderer, mt, x + 4, y + 4, 0xFF000000, false);
+            MutableComponent mt = Component.empty()
+                    .append(Component.literal("Showing results for: ").withStyle(ChatFormatting.BOLD))
+                    .append(Component.literal(cv.commandUsed.replaceFirst("co (lookup|l) ", "")));
+            context.drawString(font, mt, x + 4, y + 4, 0xFF000000, false);
         }
 
         String pageText = String.format("Page %d of %d", cv.currentPage + 1, pages);
-        int pageTextWidth = textRenderer.getWidth(pageText);
+        int pageTextWidth = font.width(pageText);
         int textX = (this.width - pageTextWidth) / 2;
-        int textY = this.y + this.backgroundHeight - textRenderer.fontHeight / 2 - 10 - 4;
+        int textY = this.y + this.backgroundHeight - font.lineHeight / 2 - 10 - 4;
 
-        context.drawText(textRenderer, pageText, textX, textY, 0xFF000000, false);
+        context.drawString(font, pageText, textX, textY, 0xFF000000, false);
 
         if (this.resetButton.isHovered()) {
-            context.drawTooltip(this.textRenderer, this.resetTooltipText, mouseX, mouseY);
+            context.setComponentTooltipForNextFrame(this.font, this.resetTooltipText, mouseX, mouseY);
         }
 
         if (this.previousPageButton.isHovered()) {
-            context.drawTooltip(this.textRenderer, this.previousTooltipText, mouseX, mouseY);
+            context.setComponentTooltipForNextFrame(this.font, this.previousTooltipText, mouseX, mouseY);
         }
 
         if (this.nextPageButton.isHovered()) {
-            context.drawTooltip(this.textRenderer, this.nextTooltipText, mouseX, mouseY);
+            context.setComponentTooltipForNextFrame(this.font, this.nextTooltipText, mouseX, mouseY);
         }
     }
 
@@ -235,7 +234,7 @@ public class LookupResultListScreen extends Screen {
                     .build();
 
             this.cards.add(card);
-            this.addDrawableChild(card);
+            this.addRenderableWidget(card);
         }
     }
 }

@@ -1,5 +1,6 @@
 package dev.spzla.covisualiser.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.spzla.covisualiser.client.config.CoVisualiserConfig;
 import dev.spzla.covisualiser.client.parser.LookupResultParser;
 import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
@@ -8,11 +9,14 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import net.minecraft.text.*;
-import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +55,8 @@ public class CoVisualiserClient implements ClientModInitializer {
 
     private ParserState parserState = ParserState.DEFAULT;
 
-    private static KeyBinding keyBinding;
-    private static final KeyBinding.Category CATEGORY = KeyBinding.Category.create(Identifier.of("covisualiser", "general"));
+    private static KeyMapping keyBinding;
+    private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("covisualiser", "general"));
     
     @Override
     public void onInitializeClient() {
@@ -62,9 +66,9 @@ public class CoVisualiserClient implements ClientModInitializer {
 
         getConfig().load();
 
-        keyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        keyBinding = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.covisualiser.openlist",
-                InputUtil.Type.KEYSYM,
+                InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_J,
                 CATEGORY
         ));
@@ -73,7 +77,7 @@ public class CoVisualiserClient implements ClientModInitializer {
         ClientSendMessageEvents.MODIFY_COMMAND.register(this::modifyCommand);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (keyBinding.wasPressed()) {
+            while (keyBinding.consumeClick()) {
                 LookupResultListScreen screen = new LookupResultListScreen();
 
                 client.setScreen(screen);
@@ -102,33 +106,33 @@ public class CoVisualiserClient implements ClientModInitializer {
     }
 
     public void sendCommand(String command) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
 
         client.execute(() -> {
             LOGGER.info("[{}] Sending command: {}", MOD_ID, command);
-            if (client.getNetworkHandler() != null) {
-                client.getNetworkHandler().sendChatCommand(command);
+            if (client.getConnection() != null) {
+                client.getConnection().sendCommand(command);
             }
         });
     }
 
-    private void sendChatMessage(Text message) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void sendChatMessage(Component message) {
+        Minecraft client = Minecraft.getInstance();
 
         client.execute(() -> {
             if (client.player != null) {
-                client.player.sendMessage(message, false);
+                client.player.displayClientMessage(message, false);
             }
         });
     }
 
     private void sendChatMessage(String message) {
-        sendChatMessage(Text.literal(message));
+        sendChatMessage(Component.literal(message));
     }
 
-    private void sendStyledMessage(Text message) {
-        MutableText text = Text.empty()
-                .append(Text.literal("CoVisualiser").setStyle(Style.EMPTY.withColor(Constants.BRAND_COLOR)))
+    private void sendStyledMessage(Component message) {
+        MutableComponent text = Component.empty()
+                .append(Component.literal("CoVisualiser").setStyle(Style.EMPTY.withColor(Constants.BRAND_COLOR)))
                 .append(" - ")
                 .append(message);
 
@@ -136,7 +140,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     }
 
     private void sendStyledMessage(String message) {
-        sendStyledMessage(Text.literal(message));
+        sendStyledMessage(Component.literal(message));
     }
 
     public void resetState() {
@@ -181,7 +185,7 @@ public class CoVisualiserClient implements ClientModInitializer {
         return text.replaceAll("§.", "");
     }
 
-    private boolean parseMessage(Text message, boolean overlay) {
+    private boolean parseMessage(Component message, boolean overlay) {
         if (!getConfig().enabled || overlay || parserState.equals(ParserState.DEFAULT)) return true;
         
         String rawText = message.getString();
@@ -226,7 +230,7 @@ public class CoVisualiserClient implements ClientModInitializer {
 
                 HoverEvent hoverEvent = message.getSiblings().getFirst().getStyle().getHoverEvent();
 
-                if (hoverEvent instanceof HoverEvent.ShowText(Text value)) {
+                if (hoverEvent instanceof HoverEvent.ShowText(Component value)) {
                     ZonedDateTime zonedDateTime = ZonedDateTime.parse(fixDate(value.getString()), dateFormatter);
                     resultBuilder.setTimestamp(zonedDateTime.toEpochSecond());
                 }
@@ -256,7 +260,7 @@ public class CoVisualiserClient implements ClientModInitializer {
                     sendStyledMessage("Parsing finished - %d results.".formatted(results.size()));
 
                     CompletableFuture.runAsync(() -> {
-                        MinecraftClient.getInstance().execute(this::resetState);
+                        Minecraft.getInstance().execute(this::resetState);
                     }, CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS));
                 } else if (counter % 100 == 0) {
                     CompletableFuture.runAsync(this::sendNextPageCommand, CompletableFuture.delayedExecutor(Constants.COMMAND_DELAY, TimeUnit.MILLISECONDS));
