@@ -34,7 +34,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static CoVisualiserClient INSTANCE;
 
-    Pattern rowCountPattern = Pattern.compile("CoreProtect - (\\d+) rows? found.");
+    Pattern rowCountPattern = Pattern.compile("CoreProtect - ([\\d,]+) rows? found.");
     Pattern timestampPattern = Pattern.compile("\\d+[,.]\\d+/[mhd] ago ([+-]) ([#\\w.]+) (placed|broke|dropped|picked up) (\\w+)\\.");
     Pattern detailsPattern = Pattern.compile("\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/(\\w+)\\)( \\(a:([a-z]+)\\))?");
     Pattern cvPattern = Pattern.compile("#(covisualiser|covisualizer|covis|cv)");
@@ -202,7 +202,8 @@ public class CoVisualiserClient implements ClientModInitializer {
         if (parserState.equals(ParserState.PARSING_COUNT)) {
             Matcher countMatcher = rowCountPattern.matcher(strippedText);
             if (countMatcher.find()) {
-                toCount = Integer.parseInt(countMatcher.group(1));
+                toCount = Integer.parseInt(countMatcher.group(1).replaceAll(",", ""));
+                lastActivityTime = System.currentTimeMillis();
                 if (toCount != 0) {
                     CompletableFuture.runAsync(() -> {
                         parserState = ParserState.PARSING_RESULTS;
