@@ -4,7 +4,7 @@ import dev.spzla.covisualiser.client.CoVisualiserClient;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -151,20 +151,20 @@ public class LookupResultListScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
-        this.renderMenuBackground(context);
+    public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+        this.extractMenuBackground(context);
 
         context.fill(RenderPipelines.GUI, x, y, x + backgroundWidth, y + backgroundHeight, 0xFFDEDEDE);
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
-        super.render(context, mouseX, mouseY, deltaTicks);
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+        super.extractRenderState(context, mouseX, mouseY, deltaTicks);
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
         if (cv.results.isEmpty()) {
             String noResultsText = "Oops! There is nothing to see here :(";
-            context.drawString(
+            context.text(
                     font,
                     noResultsText,
                     x + backgroundWidth / 2 - font.width(noResultsText) / 2,
@@ -176,7 +176,7 @@ public class LookupResultListScreen extends Screen {
             MutableComponent mt = Component.empty()
                     .append(Component.literal("Showing results for: ").withStyle(ChatFormatting.BOLD))
                     .append(Component.literal(cv.commandUsed.replaceFirst("co (lookup|l) ", "")));
-            context.drawString(font, mt, x + 4, y + 4, 0xFF000000, false);
+            context.text(font, mt, x + 4, y + 4, 0xFF000000, false);
         }
 
         String pageText = String.format("Page %d of %d", cv.currentPage + 1, pages);
@@ -184,7 +184,7 @@ public class LookupResultListScreen extends Screen {
         int textX = (this.width - pageTextWidth) / 2;
         int textY = this.y + this.backgroundHeight - font.lineHeight / 2 - 10 - 4;
 
-        context.drawString(font, pageText, textX, textY, 0xFF000000, false);
+        context.text(font, pageText, textX, textY, 0xFF000000, false);
 
         if (this.resetButton.isHovered()) {
             context.setComponentTooltipForNextFrame(this.font, this.resetTooltipText, mouseX, mouseY);

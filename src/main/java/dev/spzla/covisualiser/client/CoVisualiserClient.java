@@ -6,7 +6,7 @@ import dev.spzla.covisualiser.client.parser.LookupResultParser;
 import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.KeyMapping;
@@ -16,7 +16,6 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
-import net.minecraft.text.*;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +65,7 @@ public class CoVisualiserClient implements ClientModInitializer {
 
         getConfig().load();
 
-        keyBinding = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        keyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.covisualiser.openlist",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_J,
@@ -80,7 +79,7 @@ public class CoVisualiserClient implements ClientModInitializer {
             while (keyBinding.consumeClick()) {
                 LookupResultListScreen screen = new LookupResultListScreen();
 
-                client.setScreen(screen);
+                client.setScreenAndShow(screen);
             }
 
             if (parserState != ParserState.DEFAULT && lastActivityTime > 0) {
@@ -121,7 +120,7 @@ public class CoVisualiserClient implements ClientModInitializer {
 
         client.execute(() -> {
             if (client.player != null) {
-                client.player.displayClientMessage(message, false);
+                client.player.sendSystemMessage(message);
             }
         });
     }

@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Locale;
 
 public class CardWidget implements Renderable, GuiEventListener, NarratableEntry {
     protected int width;
@@ -73,7 +74,7 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
         this.teleportButton = Button.builder(Component.literal("TELEPORT"), button -> {
             cv.readIds.add(this.index);
             CoVisualiserClient.getInstance().sendCommand(
-                    String.format("co tp %s %.2f %d %.2f",
+                    String.format(Locale.US, "co tp %s %.2f %d %.2f",
                             this.lookupResult.worldId(),
                             this.lookupResult.x() + 0.5,
                             this.lookupResult.y(),
@@ -81,7 +82,7 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
                     ));
 
             if (CoVisualiserClient.getConfig().closeUiOnTeleport) {
-                Minecraft.getInstance().setScreen(null);
+                Minecraft.getInstance().setScreenAndShow(null);
             }
         })
                 .bounds(buttonX, buttonY, buttonWidth, buttonHeight)
@@ -94,7 +95,7 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
     }
 
     @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float deltaTicks) {
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         Minecraft client = Minecraft.getInstance();
         CoVisualiserClient cv = CoVisualiserClient.getInstance();
 
@@ -111,24 +112,24 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
         int line = 1;
         int lineHeight = client.font.lineHeight + this.innerPadding;
         //context.drawText(client.textRenderer, String.format("#%d", this.index + 1), innerX + imageBoxSize + 2 * 4, innerY + 2 * 4, 0xFF9E9E9E, false);
-        context.drawString(client.font, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
+        context.text(client.font, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
         String date = zdt.format(CoVisualiserClient.getInstance().dateFormatter);
-        context.drawString(
+        context.text(
                 client.font, date, this.innerRight - client.font.width(date) - this.innerPadding,
                 innerTop + this.outerPadding, textColor, false);
-        context.drawString(
+        context.text(
                 client.font,Component.literal(this.lookupResult.playerName()).withStyle(ChatFormatting.BOLD),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawString(
+        context.text(
                 client.font,
                 String.format("XYZ: %d %d %d", this.lookupResult.x(), this.lookupResult.y(), this.lookupResult.z()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawString(client.font, String.format("dim: %s", this.lookupResult.worldId()),
+        context.text(client.font, String.format("dim: %s", this.lookupResult.worldId()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.drawString(client.font, String.format("Block: %s", this.lookupResult.blockId()),
+        context.text(client.font, String.format("Block: %s", this.lookupResult.blockId()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
 
-        this.teleportButton.render(context, mouseX, mouseY, deltaTicks);
+        this.teleportButton.extractRenderState(context, mouseX, mouseY, deltaTicks);
     }
 
     @Override
