@@ -17,7 +17,7 @@ public class LookupResultParser {
     private static final Pattern CONTAINER = Pattern.compile("([+-]) ([#\\w.]+) (added|removed) x(\\d+) (\\w+)\\.");
     private static final Pattern LOCATION = Pattern.compile("\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/(\\w+)\\)(?: \\(a:([a-z]+)\\))?");
 
-    private static final Pattern PAGE_INFO = Pattern.compile("(◀ )?Page \\d+/\\d+( ▶)? \\([ 0-9.]+\\)");
+    private static final Pattern PAGE_INFO = Pattern.compile("(◀ )?Page \\d+/\\d+( ▶)? \\([ 0-9|.]+\\)");
     private static final Pattern USER_NOT_FOUND = Pattern.compile("CoreProtect - User \"([#\\w.]+)\" not found\\.");
 
     private static final String DATABASE_BUSY = "CoreProtect - Database busy. Please try again later.";

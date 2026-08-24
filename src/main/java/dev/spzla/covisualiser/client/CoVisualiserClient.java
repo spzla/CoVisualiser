@@ -3,12 +3,15 @@ package dev.spzla.covisualiser.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.spzla.covisualiser.client.config.CoVisualiserConfig;
 import dev.spzla.covisualiser.client.lookup.*;
+import dev.spzla.covisualiser.client.render.BlockMarkerRenderPipeline;
 import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -26,9 +29,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class CoVisualiserClient implements ClientModInitializer {
-    public static final String MOD_ID = "CoVisualiser";
+    public static final String MOD_ID = "covisualiser";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static CoVisualiserClient INSTANCE;
+
+    private final BlockMarkerRenderPipeline blockMarkerRenderPipeline = new BlockMarkerRenderPipeline();
 
     private final Pattern CV_PATTERN = Pattern.compile("#(covisualiser|covisualizer|covis|cv)");
 
@@ -46,7 +51,7 @@ public class CoVisualiserClient implements ClientModInitializer {
     private static final KeyMapping.Category CATEGORY =
             KeyMapping.Category.register(
                     Identifier.fromNamespaceAndPath(
-                            "covisualiser",
+                            CoVisualiserClient.MOD_ID,
                             "general"
                     )
             );
@@ -65,6 +70,9 @@ public class CoVisualiserClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_J,
                 CATEGORY
         ));
+
+        LevelExtractionEvents.END_EXTRACTION.register(blockMarkerRenderPipeline::extractBlockMarker);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(blockMarkerRenderPipeline::renderAndDrawBlockMarker);
 
         ClientReceiveMessageEvents.ALLOW_GAME.register(this::handleMessage);
         ClientSendMessageEvents.MODIFY_COMMAND.register(this::modifyCommand);

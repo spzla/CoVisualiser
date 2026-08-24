@@ -3,6 +3,8 @@ package dev.spzla.covisualiser.client.screen;
 import dev.spzla.covisualiser.client.CoVisualiserClient;
 import dev.spzla.covisualiser.client.Constants;
 import dev.spzla.covisualiser.client.DateFormats;
+import dev.spzla.covisualiser.client.lookup.ActionType;
+import dev.spzla.covisualiser.client.lookup.ChangeType;
 import dev.spzla.covisualiser.client.lookup.LookupResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -14,6 +16,8 @@ import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -142,6 +146,11 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
             default -> {}
         }
 
+        String actionString = getActionString(lookupResult, lookupResult.change(), lookupResult.action());
+        if (actionString != null) {
+            context.text(client.font, String.format("Action: %s", actionString),
+                    this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
+        }
 
         this.teleportButton.extractRenderState(context, mouseX, mouseY, deltaTicks);
     }
@@ -177,6 +186,42 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
     @Override
     public void updateNarration(NarrationElementOutput builder) {
 
+    }
+
+    @Nullable
+    private String getActionString(LookupResult result, ChangeType changeType, ActionType actionType) {
+        StringBuilder sb = new StringBuilder();
+
+        if (changeType == ChangeType.ADD) {
+            sb.append('+');
+        } else if (changeType == ChangeType.REMOVE) {
+            sb.append('-');
+        } else {
+            return null;
+        }
+
+        ActionType action = actionType == ActionType.UNKNOWN
+                ? inferActionFromResult(result)
+                : actionType;
+
+        switch (action) {
+            case BLOCK -> sb.append("block");
+            case ITEM -> sb.append("item");
+            case CONTAINER -> sb.append("container");
+            default -> {
+                return null;
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private ActionType inferActionFromResult(LookupResult result) {
+        return switch (result) {
+            case LookupResult.Block _ -> ActionType.BLOCK;
+            case LookupResult.Item _ -> ActionType.ITEM;
+            case LookupResult.Container _ -> ActionType.CONTAINER;
+        };
     }
 
     public static class Builder {
