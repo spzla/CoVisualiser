@@ -2,7 +2,7 @@ package dev.spzla.covisualiser.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.spzla.covisualiser.client.config.CoVisualiserConfig;
-import dev.spzla.covisualiser.client.parser.LookupResultParser;
+import dev.spzla.covisualiser.client.lookup.*;
 import dev.spzla.covisualiser.client.screen.LookupResultListScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -12,7 +12,6 @@ import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
@@ -20,8 +19,6 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,32 +27,29 @@ import java.util.regex.Pattern;
 
 public class CoVisualiserClient implements ClientModInitializer {
     public static final String MOD_ID = "CoVisualiser";
-
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static CoVisualiserClient INSTANCE;
 
-    Pattern rowCountPattern = Pattern.compile("CoreProtect - ([\\d,]+) rows? found.");
-    Pattern timestampPattern = Pattern.compile("\\d+[,.]\\d+/[mhd] ago ([+-]) ([#\\w.]+) (placed|broke|dropped|picked up) (\\w+)\\.");
-    Pattern detailsPattern = Pattern.compile("\\(x(-?\\d+)/y(-?\\d+)/z(-?\\d+)/(\\w+)\\)( \\(a:([a-z]+)\\))?");
-    Pattern cvPattern = Pattern.compile("#(covisualiser|covisualizer|covis|cv)");
+    private final Pattern CV_PATTERN = Pattern.compile("#(covisualiser|covisualizer|covis|cv)");
 
-    public DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
     public List<LookupResult> results = new ArrayList<>();
-    private final LookupResultBuilder resultBuilder = new LookupResultBuilder();
+
     public String commandUsed = "";
-    int counter = 0;
-    int toCount = 0;
+
+    private final LookupResultParser lookupResultParser = new LookupResultParser();
+    private LookupSession lookupSession;
 
     public int currentPage = 0;
     public Set<Integer> readIds = new HashSet<>();
 
-    private long lastActivityTime = 0;
-    private static final int TIMEOUT_MS = 10 * 1000;
-
-    private ParserState parserState = ParserState.DEFAULT;
-
     private static KeyMapping keyBinding;
-    private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("covisualiser", "general"));
+    private static final KeyMapping.Category CATEGORY =
+            KeyMapping.Category.register(
+                    Identifier.fromNamespaceAndPath(
+                            "covisualiser",
+                            "general"
+                    )
+            );
     
     @Override
     public void onInitializeClient() {
@@ -72,36 +66,139 @@ public class CoVisualiserClient implements ClientModInitializer {
                 CATEGORY
         ));
 
-        ClientReceiveMessageEvents.ALLOW_GAME.register(this::parseMessage);
+        ClientReceiveMessageEvents.ALLOW_GAME.register(this::handleMessage);
         ClientSendMessageEvents.MODIFY_COMMAND.register(this::modifyCommand);
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (keyBinding.consumeClick()) {
-                LookupResultListScreen screen = new LookupResultListScreen();
-
-                client.setScreenAndShow(screen);
-            }
-
-            if (parserState != ParserState.DEFAULT && lastActivityTime > 0) {
-                if (System.currentTimeMillis() - lastActivityTime > TIMEOUT_MS) {
-                    LOGGER.warn("Parser hung in state {}. Triggering failsafe reset.", parserState);
-                    sendStyledMessage("Lookup timed out. Internal state reset");
-
-                    results.clear();
-                    resetState();
-                }
-            }
-        });
+        ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 
         LOGGER.info("CoVisualiser Initialized");
     }
 
-    public static CoVisualiserClient getInstance() {
-        return INSTANCE;
+    private void onClientTick(Minecraft client) {
+        while (keyBinding.consumeClick()) {
+            LookupResultListScreen screen = new LookupResultListScreen();
+
+            client.setScreenAndShow(screen);
+        }
+
+        // TODO: re-implement timeout
     }
 
-    public static CoVisualiserConfig getConfig() {
-        return CoVisualiserConfig.INSTANCE;
+    private String modifyCommand(String command) {
+        if (!getConfig().enabled) {
+            return command;
+        }
+
+        if (lookupSession != null) {
+            return command;
+        }
+
+        if (!isLookupCommand(command)) {
+            return command;
+        }
+
+        if (command.contains("#count")) {
+            return command;
+        }
+
+        Matcher cv = CV_PATTERN.matcher(command);
+        if (!cv.find()) {
+            return command;
+        }
+
+        String lookupCommand = cv.replaceAll("").trim();
+
+        startLookup(lookupCommand);
+
+        return lookupCommand + " #count";
+    }
+
+    private boolean handleMessage(Component message, boolean overlay) {
+        if (!getConfig().enabled || lookupSession == null) {
+            return true;
+        }
+
+        boolean propagate = lookupSession.handle(message, overlay);
+
+        if (lookupSession.isComplete()) {
+            finishLookup();
+        }
+
+        return propagate;
+    }
+
+    private void startLookup(String command) {
+        results.clear();
+        resetState();
+
+        commandUsed = command;
+        LookupCommandSender commandSender = page ->
+                CompletableFuture.runAsync(
+                        () -> sendCommand(
+                                "co l %d:100".formatted(page)
+                        ),
+                        CompletableFuture.delayedExecutor(
+                                Constants.COMMAND_DELAY,
+                                TimeUnit.MILLISECONDS
+                        )
+                );
+
+        lookupSession = new LookupSession(
+                lookupResultParser,
+                commandSender
+        );
+
+        lookupSession.start();
+    }
+
+    private void finishLookup() {
+        LookupSession session = lookupSession;
+
+        if (session == null) {
+            return;
+        }
+
+        lookupSession = null;
+
+        List<LookupResult> parsedResults = session.results();
+        LookupSession.Completion completion = session.completion();
+
+        results.clear();
+
+        switch (completion) {
+            case SUCCESS -> {
+                results.addAll(parsedResults);
+
+                sendStyledMessage(
+                    "Parsing finished - %d results."
+                            .formatted(results.size()));
+            }
+
+            case NO_RESULTS ->
+                    sendStyledMessage("No results found.");
+
+            case NO_PARAMS ->
+                    sendStyledMessage("Please specify a user or radius to lookup.");
+
+            case NO_TIME ->
+                    sendStyledMessage("Please specify the amount of time to lookup.");
+
+            case USER_NOT_FOUND ->
+                    sendStyledMessage("User not found.");
+
+            case DATABASE_BUSY ->
+                    sendStyledMessage("CoreProtect database busy. Please try again later.");
+
+            case TIMEOUT ->
+                    sendStyledMessage("Lookup timed out. Internal state reset.");
+        }
+    }
+
+    private boolean isLookupCommand(String command) {
+        String[] parts = command.trim().split("\\s+");
+
+        return parts.length >= 2
+                && parts[0].equals("co")
+                && (parts[1].equals("l") || parts[1].equals("lookup"));
     }
 
     public void sendCommand(String command) {
@@ -143,133 +240,15 @@ public class CoVisualiserClient implements ClientModInitializer {
     }
 
     public void resetState() {
-        this.parserState = ParserState.DEFAULT;
-        this.counter = 0;
-        this.toCount = 0;
-        this.lastActivityTime = 0;
         this.currentPage = 0;
         this.readIds.clear();
     }
 
-    private String modifyCommand(String s) {
-        if (!getConfig().enabled) return s;
-
-        if (parserState.equals(ParserState.DEFAULT) && (s.startsWith("co l") || s.startsWith("co lookup")) && cvPattern.matcher(s).find() && !s.contains("#count")) {
-            String str = s.replaceAll(cvPattern.pattern(), "");
-            results.clear();
-            resetState();
-            parserState = ParserState.PARSING_COUNT;
-            commandUsed = str;
-
-            lastActivityTime = System.currentTimeMillis();
-
-            return str + " #count";
-        }
-
-        return s;
+    public static CoVisualiserClient getInstance() {
+        return INSTANCE;
     }
 
-    private String fixDate(String date) {
-        if (date.contains("BST")) date = date.replace("BST", "Europe/London");
-        return date;
-    }
-
-    private void sendNextPageCommand() {
-        int nextPage = (counter / 100) + 1;
-        sendCommand(String.format("co l %s:100", nextPage));
-    }
-
-
-    private String stripFormatting(String text) {
-        return text.replaceAll("§.", "");
-    }
-
-    private boolean parseMessage(Component message, boolean overlay) {
-        if (!getConfig().enabled || overlay || parserState.equals(ParserState.DEFAULT)) return true;
-        
-        String rawText = message.getString();
-        String strippedText = stripFormatting(rawText);
-
-
-        if (strippedText.equals("CoreProtect - Database busy. Please try again later.")) {
-            sendStyledMessage("CoreProtect database busy. Please try again later.");
-            resetState();
-            return false;
-        }
-        if (strippedText.matches("(◀ )?Page \\d+/\\d+( ▶)? \\([ 0-9|.]+\\)")) return false;
-        if (strippedText.equals("CoreProtect - Lookup searching. Please wait...")) return false;
-
-        if (parserState.equals(ParserState.PARSING_COUNT)) {
-            Matcher countMatcher = rowCountPattern.matcher(strippedText);
-            if (countMatcher.find()) {
-                toCount = Integer.parseInt(countMatcher.group(1).replaceAll(",", ""));
-                lastActivityTime = System.currentTimeMillis();
-                if (toCount != 0) {
-                    CompletableFuture.runAsync(() -> {
-                        parserState = ParserState.PARSING_RESULTS;
-                        sendNextPageCommand();
-                    }, CompletableFuture.delayedExecutor(Constants.COMMAND_DELAY, TimeUnit.MILLISECONDS));
-                } else {
-                    resetState();
-                    sendStyledMessage("No results found.");
-                }
-                return false;
-            }
-
-            return true;
-        } else if (parserState.equals(ParserState.PARSING_RESULTS)) {
-            if (strippedText.equals("----- CoreProtect |  Lookup Results -----")) return false;
-
-            Matcher timestampMatcher = timestampPattern.matcher(strippedText);
-            if (timestampMatcher.find()) {
-                lastActivityTime = System.currentTimeMillis();
-
-                resultBuilder.setAction(timestampMatcher.group(1));
-                resultBuilder.setPlayerName(timestampMatcher.group(2));
-                resultBuilder.setBlockId(timestampMatcher.group(4));
-
-                HoverEvent hoverEvent = message.getSiblings().getFirst().getStyle().getHoverEvent();
-
-                if (hoverEvent instanceof HoverEvent.ShowText(Component value)) {
-                    ZonedDateTime zonedDateTime = ZonedDateTime.parse(fixDate(value.getString()), dateFormatter);
-                    resultBuilder.setTimestamp(zonedDateTime.toEpochSecond());
-                }
-
-                return false;
-            }
-
-            Matcher detailsMatcher = detailsPattern.matcher(strippedText);
-            if (detailsMatcher.find()) {
-                lastActivityTime = System.currentTimeMillis();
-
-                resultBuilder.setX(Integer.parseInt(detailsMatcher.group(1)));
-                resultBuilder.setY(Integer.parseInt(detailsMatcher.group(2)));
-                resultBuilder.setZ(Integer.parseInt(detailsMatcher.group(3)));
-                resultBuilder.setWorldId(detailsMatcher.group(4));
-
-                if (detailsMatcher.group(5) != null && !Objects.equals(detailsMatcher.group(6), "block")) {
-                    resultBuilder.reset();
-                    counter++;
-                } else {
-                    results.add(resultBuilder.build());
-                    resultBuilder.reset();
-                    counter++;
-                }
-
-                if (counter >= toCount) {
-                    sendStyledMessage("Parsing finished - %d results.".formatted(results.size()));
-
-                    CompletableFuture.runAsync(() -> {
-                        Minecraft.getInstance().execute(this::resetState);
-                    }, CompletableFuture.delayedExecutor(250, TimeUnit.MILLISECONDS));
-                } else if (counter % 100 == 0) {
-                    CompletableFuture.runAsync(this::sendNextPageCommand, CompletableFuture.delayedExecutor(Constants.COMMAND_DELAY, TimeUnit.MILLISECONDS));
-                }
-
-                return false;
-            }
-        }
-
-        return true;
+    public static CoVisualiserConfig getConfig() {
+        return CoVisualiserConfig.INSTANCE;
     }
 }

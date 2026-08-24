@@ -2,7 +2,8 @@ package dev.spzla.covisualiser.client.screen;
 
 import dev.spzla.covisualiser.client.CoVisualiserClient;
 import dev.spzla.covisualiser.client.Constants;
-import dev.spzla.covisualiser.client.LookupResult;
+import dev.spzla.covisualiser.client.DateFormats;
+import dev.spzla.covisualiser.client.lookup.LookupResult;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.*;
@@ -82,7 +83,7 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
                     ));
 
             if (CoVisualiserClient.getConfig().closeUiOnTeleport) {
-                Minecraft.getInstance().setScreenAndShow(null);
+                Minecraft.getInstance().gui.setScreen(null);
             }
         })
                 .bounds(buttonX, buttonY, buttonWidth, buttonHeight)
@@ -113,12 +114,12 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
         int lineHeight = client.font.lineHeight + this.innerPadding;
         //context.drawText(client.textRenderer, String.format("#%d", this.index + 1), innerX + imageBoxSize + 2 * 4, innerY + 2 * 4, 0xFF9E9E9E, false);
         context.text(client.font, String.format("#%d", this.index + 1), this.innerLeft + this.outerPadding, this.innerTop + this.outerPadding, textColor, false);
-        String date = zdt.format(CoVisualiserClient.getInstance().dateFormatter);
+        String date = zdt.format(DateFormats.COREPROTECT_TIMESTAMP);
         context.text(
                 client.font, date, this.innerRight - client.font.width(date) - this.innerPadding,
                 innerTop + this.outerPadding, textColor, false);
         context.text(
-                client.font,Component.literal(this.lookupResult.playerName()).withStyle(ChatFormatting.BOLD),
+                client.font,Component.literal(this.lookupResult.sourceName()).withStyle(ChatFormatting.BOLD),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
         context.text(
                 client.font,
@@ -126,8 +127,21 @@ public class CardWidget implements Renderable, GuiEventListener, NarratableEntry
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
         context.text(client.font, String.format("dim: %s", this.lookupResult.worldId()),
                 this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
-        context.text(client.font, String.format("Block: %s", this.lookupResult.blockId()),
-                this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
+
+        switch (lookupResult) {
+            case LookupResult.Block block ->
+                    context.text(client.font, String.format("Block: %s", block.blockId()),
+                            this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
+            case LookupResult.Item item ->
+                    context.text(client.font, String.format("Item: %s x%d", item.itemId(), item.amount()),
+                            this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
+            case LookupResult.Container container ->
+                    context.text(client.font, String.format("Item: %s x%d", container.itemId(), container.amount()),
+                            this.innerLeft + this.outerPadding, innerTop + lineHeight * line++, textColor, false);
+
+            default -> {}
+        }
+
 
         this.teleportButton.extractRenderState(context, mouseX, mouseY, deltaTicks);
     }
